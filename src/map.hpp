@@ -3,11 +3,11 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
-#include "mower.hpp"
+//#include "mower.hpp"
 
 
-#define ROWS 6
-#define COLS 6
+#define ROWS 4
+#define COLS 4
 #define DONE 100
 
 
@@ -34,22 +34,9 @@ public:
         bool mowed;
     };
 
-    FrozenLake()
-/*            : m_board{
-            "SFFF",
-            "FHFH",
-            "FFFH",
-            "HFFF",
-            "HFFF"
-    }*/
-            : m_board{
-            "SFHFFH",
-            "FFHFFF",
-            "HFHFFF",
-            "HFFFFH",
-            "HFFFFH",
-            "HFFFFF"
-    }
+    FrozenLake():
+            m_board{"SFFF","FHFH","FFFH","HFFF"}
+
             , m_agentX(0), m_agentY(0) {
 
     }
@@ -83,7 +70,7 @@ public:
             }
         }
 
-        if (sum >= 0.55 * field) {
+        if (sum >= 0.5 * field) {
             return true;
         } else
             return false;
@@ -197,7 +184,7 @@ public:
             game.reset();
             cleanMap();
 
-            for (long long int step = 0; step <= numeric_limits<long long int>::max(); ++step) {
+            for (long long int step = 0; step <= 10000; ++step) { // numeric_limits<long long int>::max()
                 int actionIndex = rand() % 4;
 
                 int oldX = game.getAgentX();
@@ -210,7 +197,7 @@ public:
 
 //                int maxQ = 0;//*std::max_element(m_scoreMap[agentY][agentX],m_scoreMap[agentY][agentX] + 4);
 //
-//                m_scoreMap[oldY][oldX][actionIndex] = result.reward + maxQ;
+                m_scoreMap[oldY][oldX][actionIndex] = result.reward; //+ maxQ;
 
                 if (result.mowed) {
                     m_scoreMap[game.getAgentY()][game.getAgentX()][actionIndex] = DONE;
@@ -247,7 +234,7 @@ public:
                 "Up", "Down", "Left", "Right"
         };
 
-        game.reset();;
+        game.reset();
         FrozenLake::Result result;
 
 
@@ -313,12 +300,9 @@ public:
 };
 
 /*
- *  FrozenLake game;
+ *    FrozenLake game;
     QLearner agent;
-
-    agent.learn(game, 10000);//, my_lawn);
-
+    agent.learn(game, 1000);//, my_lawn);
     agent.print();
-
     agent.play(game);
  */
