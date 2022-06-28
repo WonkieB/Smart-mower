@@ -10,3 +10,15 @@ int main(){
     my_lawn.move_mower(up);
     return 0;
 }
+
+/*
+
+int main() {
+    Mow mower;
+    QLearner agent;
+    agent.learn(mower, 1000);
+    agent.print();
+    agent.play(mower);
+    return 0;
+}
+*/

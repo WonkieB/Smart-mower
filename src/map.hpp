@@ -3,7 +3,6 @@
 #include <algorithm>
 #include <iomanip>
 #include <vector>
-//#include "mower.hpp"
 
 
 #define ROWS 4
@@ -26,7 +25,7 @@ long long int optimalSteps = INT_MAX;
 uint16_t field = ROWS * COLS;
 int currRew = 0;
 
-class FrozenLake {
+class Mow {
 public:
     struct Result {
         int reward;
@@ -34,36 +33,37 @@ public:
         bool mowed;
     };
 
-    FrozenLake():
-            m_board{"SFFF","FHFH","FFFH","HFFF"}
-
-            , m_agentX(0), m_agentY(0) {
+    Mow():
+            m_board{
+                    "SFFH",
+                    "FHFH",
+                    "HFFH",
+                    "HFFF"
+        }
+            , m_X(0), m_Y(0) {
 
     }
 
 private:
     char m_board[ROWS][COLS+ 1];
-    int m_agentX, m_agentY;
+    int m_X, m_Y;
 
 public:
     Result step(Actions action, long long int stepNum) {
         if (action == Actions::Up) {
-            return moveAgent(0, -1, stepNum);
+            return Move(0, -1, stepNum);
         } else if (action == Actions::Down) {
-            return moveAgent(0, +1, stepNum);
+            return Move(0, +1, stepNum);
         } else if (action == Actions::Left) {
-            return moveAgent(-1, 0, stepNum);
+            return Move(-1, 0, stepNum);
         } else if (action == Actions::Right) {
-            return moveAgent(+1, 0, stepNum);
+            return Move(+1, 0, stepNum);
         }
 
         return {0, true};
     }
-
-    static bool doneField(int agentX, int agentY) {
-        paths[agentY][agentX] = 1;
+    static bool checkField(){
         size_t sum = 0;
-
         for (auto &row:paths) {
             for (auto &col:row) {
                 if (col) { sum += 1; }
@@ -75,10 +75,13 @@ public:
         } else
             return false;
     }
+    static void doneField(int agentX, int agentY) {
+        paths[agentY][agentX] = 1;
+    }
 
     void reset() {
-        m_agentX = 0;
-        m_agentY = 0;
+        m_X = 0;
+        m_Y = 0;
         for (auto &i : paths)
             std::fill(i.begin(), i.end(), 0);
     }
@@ -86,7 +89,7 @@ public:
     void print() const {
         for (int y = 0; y < ROWS; ++y) {
             for (int x = 0; x < COLS; ++x) {
-                if (m_agentX == x && m_agentY == y) {
+                if (m_X == x && m_Y == y) {
                     cout.put('@');
                 } else {
                     cout.put(m_board[y][x]);
@@ -97,56 +100,51 @@ public:
         }
     }
 
-    int getAgentX() const {
-        return m_agentX;
+    int getX() const {
+        return m_X;
     }
 
-    int getAgentY() const {
-        return m_agentY;
+    int getY() const {
+        return m_Y;
     }
 
 private:
-    Result moveAgent(int x, int y, long long int step) {
+    Result Move(int x, int y, long long int step) {
         Result result;
         result.reward = step;
         result.done = false;
         result.mowed = false;
 
 
-        m_agentX += x;
-        m_agentY += y;
+        m_X += x;
+        m_Y += y;
 
-        if (m_agentX < 0) {
-            m_agentX = 0;
+        if (m_X < 0) {
+            m_X = 0;
             result.reward = -1;
-        } else if (m_agentX >= ROWS) {
-            m_agentX = ROWS - 1;
-            result.reward = -1;
-        }
-
-
-        if (m_agentY < 0) {
-            m_agentY = 0;
-            result.reward = -1;
-        } else if (m_agentY >= COLS) {
-            m_agentY = COLS - 1;
+        } else if (m_X >= ROWS) {
+            m_X = ROWS - 1;
             result.reward = -1;
         }
 
+        if (m_Y < 0) {
+            m_Y = 0;
+            result.reward = -1;
+        } else if (m_Y >= COLS) {
+            m_Y = COLS - 1;
+            result.reward = -1;
+        }
 
-        if (m_board[m_agentY][m_agentX] == 'H') {
+        if (m_board[m_Y][m_X] == 'H') {
             result.reward = -1;
             result.done = true;
         }
-            /*else if (m_board[m_agentY][m_agentX] == 'G')
-            {
-                result.reward = 10;
-                result.done = true;
-            }*/
 
+        if (result.reward != -1){
+            doneField(m_X, m_Y);
+        }
 
-        else if (doneField(m_agentX, m_agentY)) {
-            //result.reward = DONE;
+        if (checkField()){
             result.done = true;
             result.mowed = true;
         }
@@ -158,7 +156,7 @@ private:
 
 class QLearner {
 
-    // m_scoreMap[y][x][dir(up, down, left, right)] == (x, y)에서 dir로 이동했을 때의 점수
+    // m_scoreMap[y][x][dir(up, down, left, right)] == (x, y)
     int m_scoreMap[ROWS][COLS][4];
     int m_finalMap[ROWS][COLS][4];
 
@@ -171,8 +169,16 @@ public:
     void cleanMap() {
         fill(*m_scoreMap[0], *m_scoreMap[COLS], 0);
     }
+    bool homeChecker(){
+        if (paths[0][0] == 1){
+            for (int i = 0; i < 4; i++) {
+                if(m_scoreMap[0][0][i] == 1){return true;}
+            }
+        }
+        else {return false;}
+    }
 
-    void learn(FrozenLake &game, int totalEpochs){//, Lawn my_lawn) {
+    void learn(Mow &mower, int totalEpochs){
         const Actions actionList[4] = {
                 Actions::Up,
                 Actions::Down,
@@ -181,27 +187,26 @@ public:
         };
 
         for (int epoch = 1; epoch <= totalEpochs; ++epoch) {
-            game.reset();
+            mower.reset();
             cleanMap();
 
-            for (long long int step = 0; step <= 10000; ++step) { // numeric_limits<long long int>::max()
+            for (long long int step = 0; step <= 100000; ++step) { // numeric_limits<long long int>::max()
                 int actionIndex = rand() % 4;
 
-                int oldX = game.getAgentX();
-                int oldY = game.getAgentY();
+                int oldX = mower.getX();
+                int oldY = mower.getY();
 
-                auto result = game.step(actionList[actionIndex], step);
+                auto result = mower.step(actionList[actionIndex], step);
 
-                int agentX = game.getAgentX();
-                int agentY = game.getAgentY();
+                int agentX = mower.getX();
+                int agentY = mower.getY();
 
-//                int maxQ = 0;//*std::max_element(m_scoreMap[agentY][agentX],m_scoreMap[agentY][agentX] + 4);
-//
+//              int maxQ = 0;//*std::max_element(m_scoreMap[agentY][agentX],m_scoreMap[agentY][agentX] + 4);
                 m_scoreMap[oldY][oldX][actionIndex] = result.reward; //+ maxQ;
 
                 if (result.mowed) {
-                    m_scoreMap[game.getAgentY()][game.getAgentX()][actionIndex] = DONE;
-                    if ((step < optimalSteps) && (paths[0][0] == 1))
+                    m_scoreMap[agentY][agentX][actionIndex] = DONE;
+                    if ((step < optimalSteps) && (homeChecker()))
                     {
                         //  przypisanie
                         optimalSteps = step;
@@ -213,13 +218,13 @@ public:
                             }
                         }
                         // print
-                        for (int i = 0; i < ROWS; i++) {
+                       /* for (int i = 0; i < ROWS; i++) {
                             for (int j = 0; j < COLS; j++) {
                                 cout << paths[i][j];
                             }
                             cout << endl;
                         }
-                        cout << endl;
+                        cout << endl;*/
                     }
                     break;
                 } else if (result.done) {
@@ -229,26 +234,26 @@ public:
         }
     }
 
-    void play(FrozenLake &game) const {
+    void play(Mow &game) const {
         const std::string actionName[] = {
                 "Up", "Down", "Left", "Right"
         };
 
         game.reset();
-        FrozenLake::Result result;
+        Mow::Result result;
 
 
         for (int step = 1; step <= 100; ++step) {
-            int agentX = game.getAgentX();
-            int agentY = game.getAgentY();
+            int Xpos = game.getX();
+            int Ypos = game.getY();
             int actionIndex = -1;
             int temp = 0;
             // find next step
             while (temp != currRew + 1) {
                 actionIndex++;
-                temp = m_finalMap[agentY][agentX][actionIndex];
+                temp = m_finalMap[Ypos][Xpos][actionIndex];
                 // if found DONE score
-                if (temp == DONE) {
+                if (step > 1 && temp == DONE) {
                     break;
                 }
                 // in case learning issue
@@ -260,7 +265,7 @@ public:
             currRew = currRew + 1;
             result = game.step(static_cast<Actions>(actionIndex), step);
 
-            cout << "Action " << actionName[actionIndex] << " Score " << m_finalMap[agentY][agentX][actionIndex] << endl;
+            cout << "Action " << actionName[actionIndex] << " Score " << m_finalMap[Ypos][Xpos][actionIndex] << endl;
             game.print();
 
             cout << "----" << endl;
@@ -298,11 +303,3 @@ public:
         }
     }
 };
-
-/*
- *    FrozenLake game;
-    QLearner agent;
-    agent.learn(game, 1000);//, my_lawn);
-    agent.print();
-    agent.play(game);
- */
