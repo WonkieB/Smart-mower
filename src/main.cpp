@@ -1,6 +1,6 @@
 #include <iostream>
 #include "map.hpp"
-#include "mower.hpp"
+//#include "mower.hpp"
 
 int main() {
     Mow mower;
